@@ -1,0 +1,13 @@
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/Main.java
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/config/ServerConfig.java
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/db/Database.java
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/db/StationDao.java
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/db/TransactionDao.java
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/i18n/Messages.java
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/mail/ShiftReportMailer.java
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/net/CafeServer.java
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/net/ClientHandler.java
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/net/ClientRegistry.java
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/ui/CashierFrame.java
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/ui/StationRefreshWorker.java
+/Users/bat-orgilkhashbat/Downloads/cafe-management/cafe-server/src/main/java/cafe/server/ui/StationTableModel.java
