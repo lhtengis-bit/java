@@ -97,7 +97,7 @@ public final class KioskFrame extends JFrame implements ServerConnection.Listene
                 BorderFactory.createLineBorder(new Color(140, 50, 50), 2),
                 BorderFactory.createEmptyBorder(8, 32, 8, 32)));
 
-        JLabel title = new JLabel("Please pay at the cashier", SwingConstants.CENTER);
+        JLabel title = new JLabel("Та төлбөрөө төлнө үү", SwingConstants.CENTER);
         title.setForeground(COLOR_LIGHT);
         title.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 64));
 
