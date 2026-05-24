@@ -51,9 +51,11 @@ public final class TransactionDao {
 
     /** Today's transactions, oldest first. Used by the end-of-shift report. */
     public List<CashTransaction> listForToday() throws SQLException {
+        // Range condition is sargable — can use an index on `timestamp`.
+        // DATE(timestamp) = CURDATE() wraps the column in a function and prevents index use.
         String sql = "SELECT transaction_id, station_id, amount_paid, `timestamp` " +
                      "FROM cash_transactions " +
-                     "WHERE DATE(`timestamp`) = CURDATE() " +
+                     "WHERE `timestamp` >= CURDATE() AND `timestamp` < CURDATE() + INTERVAL 1 DAY " +
                      "ORDER BY `timestamp`";
         try (Connection c = db.open();
              PreparedStatement ps = c.prepareStatement(sql);
@@ -75,8 +77,8 @@ public final class TransactionDao {
 
     /** Sum of today's cash. Returns BigDecimal.ZERO if nothing recorded. */
     public BigDecimal totalToday() throws SQLException {
-        String sql = "SELECT COALESCE(SUM(amount_paid), 0) AS total " +
-                     "FROM cash_transactions WHERE DATE(`timestamp`) = CURDATE()";
+        String sql = "SELECT COALESCE(SUM(amount_paid), 0) AS total FROM cash_transactions " +
+                     "WHERE `timestamp` >= CURDATE() AND `timestamp` < CURDATE() + INTERVAL 1 DAY";
         try (Connection c = db.open();
              PreparedStatement ps = c.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {

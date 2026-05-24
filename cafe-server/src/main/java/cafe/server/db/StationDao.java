@@ -52,26 +52,27 @@ public final class StationDao {
         }
     }
 
-    /** Update only the IP address (used on reconnect to preserve status/time). */
-    public void updateIpAddress(int stationId, String ipAddress) throws SQLException {
-        String sql = "UPDATE stations SET ip_address = ? WHERE station_id = ?";
-        try (Connection c = db.open();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, ipAddress);
-            ps.setInt(2, stationId);
-            ps.executeUpdate();
-        }
-    }
-
-    /** Update both status and IP on handshake. */
-    public void markOnline(int stationId, String ipAddress, StationStatus status) throws SQLException {
-        String sql = "UPDATE stations SET ip_address = ?, status = ? WHERE station_id = ?";
-        try (Connection c = db.open();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, ipAddress);
-            ps.setString(2, status.name());
-            ps.setInt(3, stationId);
-            ps.executeUpdate();
+    /**
+     * Update the station's IP address and return its current state in one
+     * connection — replaces the old separate {@code updateIpAddress} + {@code findById}
+     * pair that opened two connections on reconnect.
+     */
+    public Optional<Station> updateIpAndFetch(int stationId, String ipAddress) throws SQLException {
+        try (Connection c = db.open()) {
+            try (PreparedStatement ps = c.prepareStatement(
+                    "UPDATE stations SET ip_address = ? WHERE station_id = ?")) {
+                ps.setString(1, ipAddress);
+                ps.setInt(2, stationId);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT station_id, ip_address, status, time_remaining " +
+                    "FROM stations WHERE station_id = ?")) {
+                ps.setInt(1, stationId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next() ? Optional.of(map(rs)) : Optional.empty();
+                }
+            }
         }
     }
 

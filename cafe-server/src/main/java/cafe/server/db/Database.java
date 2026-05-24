@@ -56,7 +56,8 @@ public final class Database {
 
     /**
      * Run {@code fn} inside a single JDBC transaction on one connection.
-     * Commits on success; rolls back and re-throws on any {@link SQLException}.
+     * Commits on success; rolls back and re-throws on {@link SQLException}
+     * or any {@link RuntimeException} from the lambda.
      */
     public <T> T inTransaction(SqlFunction<T> fn) throws SQLException {
         try (Connection c = open()) {
@@ -65,9 +66,11 @@ public final class Database {
                 T result = fn.apply(c);
                 c.commit();
                 return result;
-            } catch (SQLException e) {
-                c.rollback();
-                throw e;
+            } catch (Exception e) {
+                try { c.rollback(); } catch (SQLException re) { e.addSuppressed(re); }
+                if (e instanceof SQLException se) throw se;
+                if (e instanceof RuntimeException re) throw re;
+                throw new SQLException("Unexpected error in transaction", e);
             }
         }
     }

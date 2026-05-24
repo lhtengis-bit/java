@@ -34,13 +34,14 @@ DROP TABLE IF EXISTS cash_transactions;
 CREATE TABLE cash_transactions (
     transaction_id  INT             NOT NULL AUTO_INCREMENT,
     station_id      INT             NOT NULL,
-    amount_paid     DECIMAL(6,2)    NOT NULL,
+    amount_paid     DECIMAL(10,2)   NOT NULL,   -- widened from (6,2); supports up to 99,999,999.99₮
     `timestamp`     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (transaction_id),
     CONSTRAINT fk_tx_station
         FOREIGN KEY (station_id) REFERENCES stations(station_id),
     CONSTRAINT chk_amount_positive
-        CHECK (amount_paid > 0)
+        CHECK (amount_paid > 0),
+    INDEX idx_tx_date (`timestamp`)              -- sargable range queries on timestamp
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------

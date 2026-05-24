@@ -88,16 +88,9 @@ public final class CafeServer {
     }
 
     private void pingAll() {
-        // Iteration over ConcurrentHashMap is safe and weakly consistent.
-        // We rely on socket-level exceptions to evict dead connections.
-        try {
-            for (var s : stationDao.listAll()) {
-                registry.get(s.getStationId())
-                        .ifPresent(h -> h.send(Protocol.CMD_PING));
-            }
-        } catch (Exception e) {
-            LOG.log(Level.WARNING, "Heartbeat sweep failed", e);
-        }
+        // registry already tracks every live socket — no DB query needed.
+        // Socket-level exceptions on send() will evict dead connections naturally.
+        registry.broadcast(Protocol.CMD_PING);
     }
 
     public void stop() {
