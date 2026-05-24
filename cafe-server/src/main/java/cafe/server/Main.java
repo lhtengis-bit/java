@@ -37,7 +37,10 @@ public final class Main {
         // Start TCP server BEFORE the UI so kiosks can connect immediately.
         CafeServer server = new CafeServer(cfg, registry, stationDao);
         server.start();
-        Runtime.getRuntime().addShutdownHook(new Thread(server::stop, "cafe-shutdown"));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            server.stop();
+            db.close();   // drain HikariCP pool after kiosks are locked
+        }, "cafe-shutdown"));
 
         Locale initial = parseLocale(cfg.str("ui.default.locale", "en"));
         Messages msg = new Messages(initial);
@@ -50,7 +53,7 @@ public final class Main {
                 try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); }
                 catch (Exception ignored) { }
             }
-            CashierFrame frame = new CashierFrame(cfg, msg, stationDao, txDao, registry);
+            CashierFrame frame = new CashierFrame(cfg, msg, db, stationDao, txDao, registry);
             frame.setVisible(true);
             frame.startRefresh();
         });

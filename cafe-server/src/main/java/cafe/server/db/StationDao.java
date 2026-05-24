@@ -87,18 +87,33 @@ public final class StationDao {
 
     /** Add {@code seconds} to the existing remaining time and unlock. Returns new total. */
     public int addTimeAndUnlock(int stationId, int secondsToAdd) throws SQLException {
-        String sql = "UPDATE stations " +
-                     "SET time_remaining = time_remaining + ?, status = 'UNLOCKED' " +
-                     "WHERE station_id = ?";
-        try (Connection c = db.open();
-             PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection c = db.open()) {
+            return addTimeAndUnlock(stationId, secondsToAdd, c);
+        }
+    }
+
+    /**
+     * Same as {@link #addTimeAndUnlock(int, int)} but uses a caller-supplied
+     * connection — for use inside {@link Database#inTransaction}.
+     * Both the UPDATE and the confirming SELECT run on the same connection,
+     * eliminating the cross-connection race condition.
+     */
+    public int addTimeAndUnlock(int stationId, int secondsToAdd, Connection c) throws SQLException {
+        String update = "UPDATE stations " +
+                        "SET time_remaining = time_remaining + ?, status = 'UNLOCKED' " +
+                        "WHERE station_id = ?";
+        try (PreparedStatement ps = c.prepareStatement(update)) {
             ps.setInt(1, secondsToAdd);
             ps.setInt(2, stationId);
             ps.executeUpdate();
         }
-        return findById(stationId)
-                .map(Station::getTimeRemainingSeconds)
-                .orElse(secondsToAdd);
+        String select = "SELECT time_remaining FROM stations WHERE station_id = ?";
+        try (PreparedStatement ps = c.prepareStatement(select)) {
+            ps.setInt(1, stationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : secondsToAdd;
+            }
+        }
     }
 
     /** Set an exact time and derive status: UNLOCKED if seconds > 0, LOCKED if 0. */

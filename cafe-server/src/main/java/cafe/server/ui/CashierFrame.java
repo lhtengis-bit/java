@@ -1,6 +1,7 @@
 package cafe.server.ui;
 
 import cafe.server.config.ServerConfig;
+import cafe.server.db.Database;
 import cafe.server.db.StationDao;
 import cafe.server.db.TransactionDao;
 import cafe.server.i18n.Messages;
@@ -23,6 +24,7 @@ import java.util.Locale;
 public final class CashierFrame extends JFrame {
 
     private final Messages msg;
+    private final Database db;
     private final StationDao stationDao;
     private final TransactionDao txDao;
     private final ClientRegistry registry;
@@ -45,12 +47,14 @@ public final class CashierFrame extends JFrame {
 
     public CashierFrame(ServerConfig cfg,
                         Messages msg,
+                        Database db,
                         StationDao stationDao,
                         TransactionDao txDao,
                         ClientRegistry registry) {
         super();
         this.cfg = cfg;
         this.msg = msg;
+        this.db = db;
         this.stationDao = stationDao;
         this.txDao = txDao;
         this.registry = registry;
@@ -389,8 +393,12 @@ public final class CashierFrame extends JFrame {
                         errorMsg = msg.format("dialog.fund.offline", stationId);
                         return false;
                     }
-                    txDao.insert(stationId, amount);
-                    int totalSeconds = stationDao.addTimeAndUnlock(stationId, secondsToAdd);
+                    // Atomic: insert cash record + update time in one transaction.
+                    // If station update fails, the transaction record also rolls back.
+                    int totalSeconds = db.inTransaction(conn -> {
+                        txDao.insert(stationId, amount, conn);
+                        return stationDao.addTimeAndUnlock(stationId, secondsToAdd, conn);
+                    });
                     maybe.get().send(Protocol.unlock(totalSeconds));
                     return true;
                 } catch (Exception ex) {

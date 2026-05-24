@@ -28,9 +28,18 @@ public final class TransactionDao {
 
     /** Record a cash deposit. Returns the generated transaction id. */
     public int insert(int stationId, BigDecimal amountPaid) throws SQLException {
+        try (Connection c = db.open()) {
+            return insert(stationId, amountPaid, c);
+        }
+    }
+
+    /**
+     * Same as {@link #insert(int, BigDecimal)} but uses a caller-supplied
+     * connection — for use inside {@link Database#inTransaction}.
+     */
+    public int insert(int stationId, BigDecimal amountPaid, Connection c) throws SQLException {
         String sql = "INSERT INTO cash_transactions (station_id, amount_paid) VALUES (?, ?)";
-        try (Connection c = db.open();
-             PreparedStatement ps = c.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement ps = c.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, stationId);
             ps.setBigDecimal(2, amountPaid);
             ps.executeUpdate();
