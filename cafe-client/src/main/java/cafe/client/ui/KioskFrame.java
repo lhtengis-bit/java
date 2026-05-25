@@ -63,6 +63,7 @@ public final class KioskFrame extends JFrame implements ServerConnection.Listene
     private int     totalSeconds     = 1;
     private boolean beepedAt60       = false;
     private boolean flashState       = false;
+    private volatile boolean locked  = true;   // tracks LOCKED vs SIDEBAR state
 
     private final KioskConfig      cfg;
     private       ServerConnection conn;
@@ -77,9 +78,9 @@ public final class KioskFrame extends JFrame implements ServerConnection.Listene
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
 
-        // Prevent minimization when locked — immediately restore to maximized.
+        // Prevent minimization only when LOCKED — ignore while sidebar is visible.
         addWindowStateListener(e -> {
-            if ((e.getNewState() & Frame.ICONIFIED) != 0) {
+            if (locked && (e.getNewState() & Frame.ICONIFIED) != 0) {
                 SwingUtilities.invokeLater(() ->
                     setExtendedState((getExtendedState() & ~Frame.ICONIFIED) | JFrame.MAXIMIZED_BOTH));
             }
@@ -266,6 +267,7 @@ public final class KioskFrame extends JFrame implements ServerConnection.Listene
     // =========================================================================
 
     private void switchToSidebar() {
+        locked = false;
         if (supportsOpacity) setOpacity(0.93f);
         setAlwaysOnTop(true);
         setExtendedState(JFrame.NORMAL);
@@ -277,6 +279,7 @@ public final class KioskFrame extends JFrame implements ServerConnection.Listene
     }
 
     private void switchToFullScreen() {
+        locked = true;
         if (supportsOpacity) setOpacity(1.0f);
         setAlwaysOnTop(true);   // stay on top — locked screen cannot be buried
         setExtendedState(JFrame.MAXIMIZED_BOTH);
