@@ -5,16 +5,18 @@ import cafe.server.db.Database;
 import cafe.server.db.StationDao;
 import cafe.server.db.TransactionDao;
 import cafe.server.i18n.Messages;
-import cafe.server.mail.ShiftReportMailer;
+import cafe.server.report.ShiftReportPdf;
 import cafe.server.net.ClientRegistry;
 import cafe.shared.CashTransaction;
 import cafe.shared.Protocol;
 import cafe.shared.Station;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.io.File;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.format.DateTimeFormatter;
@@ -217,7 +219,7 @@ public final class CashierFrame extends JFrame {
 
         JMenu mReport = new JMenu();
         JMenuItem miClose = new JMenuItem();
-        miClose.addActionListener(e -> closeShiftAndEmail());
+        miClose.addActionListener(e -> closeShiftAndSavePdf());
         mReport.add(miClose);
 
         bar.add(mSystem);
@@ -482,12 +484,27 @@ public final class CashierFrame extends JFrame {
         }.execute();
     }
 
-    private void closeShiftAndEmail() {
+    private void closeShiftAndSavePdf() {
+        // Let the cashier pick where to save — runs on EDT so JFileChooser is fine here.
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle(msg.get("menu.report.close"));
+        chooser.setFileFilter(new FileNameExtensionFilter("PDF Files (*.pdf)", "pdf"));
+        String defaultName = "shift-report-" + java.time.LocalDate.now() + ".pdf";
+        chooser.setSelectedFile(new File(System.getProperty("user.home"), defaultName));
+
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+
+        File chosen = chooser.getSelectedFile();
+        final File target = chosen.getName().toLowerCase().endsWith(".pdf")
+                ? chosen
+                : new File(chosen.getAbsolutePath() + ".pdf");
+
+        // PDF generation is I/O-bound — do it off the EDT.
         new SwingWorker<Void, Void>() {
             Exception failure;
             @Override protected Void doInBackground() {
                 try {
-                    new ShiftReportMailer(cfg, txDao).sendNow();
+                    new ShiftReportPdf(txDao).generateTo(target);
                 } catch (Exception e) {
                     failure = e;
                 }
@@ -496,7 +513,7 @@ public final class CashierFrame extends JFrame {
             @Override protected void done() {
                 if (failure == null) {
                     JOptionPane.showMessageDialog(CashierFrame.this,
-                        msg.get("dialog.report.ok"));
+                        msg.format("dialog.report.ok", target.getAbsolutePath()));
                 } else {
                     JOptionPane.showMessageDialog(CashierFrame.this,
                         msg.format("dialog.report.fail", failure.getMessage()),

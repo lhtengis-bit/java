@@ -77,6 +77,14 @@ public final class KioskFrame extends JFrame implements ServerConnection.Listene
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
 
+        // Prevent minimization when locked — immediately restore to maximized.
+        addWindowStateListener(e -> {
+            if ((e.getNewState() & Frame.ICONIFIED) != 0) {
+                SwingUtilities.invokeLater(() ->
+                    setExtendedState((getExtendedState() & ~Frame.ICONIFIED) | JFrame.MAXIMIZED_BOTH));
+            }
+        });
+
         root.add(buildLockedCard(),  CARD_LOCKED);
         root.add(buildSidebarCard(), CARD_SIDEBAR);
         setContentPane(root);
@@ -270,7 +278,7 @@ public final class KioskFrame extends JFrame implements ServerConnection.Listene
 
     private void switchToFullScreen() {
         if (supportsOpacity) setOpacity(1.0f);
-        setAlwaysOnTop(false);
+        setAlwaysOnTop(true);   // stay on top — locked screen cannot be buried
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         cards.show(root, CARD_LOCKED);
     }

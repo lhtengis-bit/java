@@ -1,4 +1,8 @@
 -- Seed a handful of stations for local testing.
+-- OPTIONAL: stations are now auto-created the first time a kiosk connects
+-- (via INSERT ... ON DUPLICATE KEY UPDATE in StationDao.upsertAndFetch).
+-- Only run this if you want rows pre-populated before any kiosk connects,
+-- e.g. so the cashier UI shows stations while everything is booting up.
 -- Run AFTER schema.sql.
 USE pc_cafe;
 

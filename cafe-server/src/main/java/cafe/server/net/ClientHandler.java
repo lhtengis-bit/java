@@ -93,15 +93,15 @@ public final class ClientHandler implements Runnable {
             this.stationId = id;
             String ip = socket.getInetAddress().getHostAddress();
 
-            // One connection: update IP + read current state (was two separate connections).
-            var maybe = stationDao.updateIpAndFetch(id, ip);
+            // Upsert: auto-create station row if new kiosk, or update IP if reconnecting.
+            var station = stationDao.upsertAndFetch(id, ip);
             registry.register(id, this);
 
             // Restore session if the kiosk reconnected mid-session with time remaining.
             // Check time only — status is OFFLINE after cleanup(), not UNLOCKED.
-            if (maybe.isPresent() && maybe.get().getTimeRemainingSeconds() > 0) {
+            if (station.getTimeRemainingSeconds() > 0) {
                 stationDao.setStatus(id, StationStatus.UNLOCKED);
-                send(Protocol.unlock(maybe.get().getTimeRemainingSeconds()));
+                send(Protocol.unlock(station.getTimeRemainingSeconds()));
             } else {
                 stationDao.zeroTimeAndLock(id);
                 send(Protocol.CMD_LOCK);

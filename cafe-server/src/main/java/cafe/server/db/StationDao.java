@@ -53,6 +53,34 @@ public final class StationDao {
     }
 
     /**
+     * Insert the station row if it does not exist yet, or update its IP if it does.
+     * Returns the current row after the upsert — never empty, so callers get a
+     * non-Optional result. This is the entry-point when a kiosk first connects:
+     * stations are auto-created on IDENTITY, not pre-seeded.
+     */
+    public Station upsertAndFetch(int stationId, String ipAddress) throws SQLException {
+        try (Connection c = db.open()) {
+            try (PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO stations (station_id, ip_address, status, time_remaining) " +
+                    "VALUES (?, ?, 'OFFLINE', 0) " +
+                    "ON DUPLICATE KEY UPDATE ip_address = VALUES(ip_address)")) {
+                ps.setInt(1, stationId);
+                ps.setString(2, ipAddress);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT station_id, ip_address, status, time_remaining " +
+                    "FROM stations WHERE station_id = ?")) {
+                ps.setInt(1, stationId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) throw new SQLException("upsert succeeded but SELECT returned empty for station " + stationId);
+                    return map(rs);
+                }
+            }
+        }
+    }
+
+    /**
      * Update the station's IP address and return its current state in one
      * connection — replaces the old separate {@code updateIpAddress} + {@code findById}
      * pair that opened two connections on reconnect.
