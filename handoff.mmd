@@ -1,0 +1,100 @@
+---
+config:
+    fontSize: 14
+    fontFamily: 'courier new'
+---
+
+graph TB
+    subgraph CLIENT["🖥️ Cafe Client (Java Swing)"]
+        KF["KioskFrame<br/>- Locked: fullscreen, unmovable<br/>- Unlocked: 15% sidebar<br/>- Prevents minimization when locked"]
+        KC["KioskConfig<br/>server.host, server.port<br/>stationId"]
+        SC["ServerConnection<br/>TCP socket to cafe-server<br/>Protocol: IDENTITY, UNLOCK, LOCK<br/>TIME_EXPIRED, PING/PONG"]
+    end
+
+    subgraph SERVER["⚙️ Cafe Server (Java + Swing)"]
+        CS["CafeServer<br/>TCP accept loop on port 6969<br/>ClientRegistry tracks live kiosks<br/>Periodic PING heartbeat"]
+        CH["ClientHandler<br/>Per-kiosk socket handler<br/>onIdentity() auto-creates stations<br/>Sends UNLOCK/LOCK/PING"]
+        CR["ClientRegistry<br/>ConcurrentHashMap stationId→handler<br/>broadcast() to all kiosks"]
+    end
+
+    subgraph DB["🗄️ Database Layer (MySQL + HikariCP)"]
+        HCP["HikariCP Pool<br/>10 connections, 2 min idle<br/>30s idle timeout"]
+        Database["Database.java<br/>open() from pool<br/>inTransaction() for atomicity<br/>SqlFunction<T> for lambda"]
+        SDao["StationDao<br/>upsertAndFetch() auto-create<br/>addTimeAndUnlock() atomic<br/>setStatus/zeroTimeAndLock"]
+        TDao["TransactionDao<br/>insert() append-only ledger<br/>listForToday() sargable query<br/>totalToday()"]
+    end
+
+    subgraph SCHEMA["📋 MySQL Schema"]
+        STT["stations table<br/>PK: station_id<br/>ip_address, status, time_remaining"]
+        CTX["cash_transactions table<br/>PK: transaction_id<br/>station_id (FK), amount_paid, timestamp<br/>Immutable: triggers block UPDATE/DELETE<br/>INDEX on timestamp (sargable)"]
+    end
+
+    subgraph REPORT["📊 Shift Reports"]
+        CF["CashierFrame<br/>JTable: live station list<br/>Transactions tab: today's log<br/>Add Funds, Lock, Set Time buttons"]
+        PDF["ShiftReportPdf<br/>OpenPDF generator<br/>Per-station summary table<br/>Full transaction log + total"]
+    end
+
+    subgraph UI["🎨 Client UI"]
+        LOCK["LOCKED Card<br/>Station #N (72pt)<br/>Mongolian 'Pay' prompt<br/>Clock, LOCKED badge<br/>Gradient dark blue bg"]
+        SIDE["SIDEBAR Card<br/>15% width, right-anchored<br/>Dark theme<br/>Time remaining (hrs/min/sec)<br/>Progress bar + session summary<br/>Pricing info"]
+    end
+
+    subgraph PROTOCOL["📡 TCP Protocol (Text-based)"]
+        ID["IDENTITY:&lt;stationId&gt;<br/>Kiosk→Server on connect"]
+        UL["UNLOCK:&lt;seconds&gt;<br/>Server→Kiosk to start session"]
+        LC["LOCK<br/>Server→Kiosk to end session"]
+        EX["TIME_EXPIRED<br/>Kiosk→Server when time runs out"]
+        HB["PING / PONG<br/>Server→Kiosk heartbeat every 15s"]
+    end
+
+    subgraph FEATURES["✨ Key Features"]
+        F1["Dynamic Stations<br/>Auto-create on IDENTITY<br/>No pre-seeding required<br/>INSERT ... ON DUPLICATE KEY UPDATE"]
+        F2["Atomic Transactions<br/>db.inTransaction() wraps<br/>insert + addTimeAndUnlock<br/>All-or-nothing commit"]
+        F3["Connection Pooling<br/>HikariCP reuses connections<br/>~10 live TCP conns, not per-call"]
+        F4["PDF Download<br/>JFileChooser save dialog<br/>Report: per-station + full log<br/>Replaces email"]
+        F5["Locked Lockdown<br/>WindowStateListener blocks<br/>minimization + movement<br/>alwaysOnTop in LOCKED mode"]
+        F6["Sargable Queries<br/>timestamp range, not DATE()<br/>Enables index use"]
+    end
+
+    subgraph TECH["🛠️ Tech Stack"]
+        JAVA["Java 17, Maven multi-module<br/>cafe-shared, cafe-server, cafe-client"]
+        MYSQL["MySQL 8.x + JDBC<br/>HikariCP 5.1.0 pooling"]
+        LIB["OpenPDF 1.3.43 (PDF gen)<br/>FlatLaf 3.4.1 (UI theming)<br/>Swing (GUI)"]
+    end
+
+    subgraph RECENT["📌 Recent Commits"]
+        C1["066a17f: Kiosk lockdown + dynamic<br/>stations + PDF shift report"]
+        C2["1507c25: Fix sidebar→fullscreen<br/>bug when other windows close"]
+        C3["7809aff: Add .gitignore, purge<br/>36 compiled .class files"]
+    end
+
+    %% Connections
+    CLIENT -->|TCP on:6969| SERVER
+    SC -->|send/recv| CH
+    SERVER -->|manage| DB
+    CH -->|upsertAndFetch| SDao
+    CH -->|update status| SDao
+    CafeServer -->|broadcast| CR
+    SDao -->|use| Database
+    TDao -->|use| Database
+    Database -->|getConnection| HCP
+    HCP -->|connect| SCHEMA
+    SDao -->|query| STT
+    TDao -->|query| CTX
+    CF -->|generate| PDF
+    PDF -->|read| TDao
+    KF -->|LOCKED| LOCK
+    KF -->|UNLOCKED| SIDE
+    SC -->|speak| PROTOCOL
+    CH -->|send| PROTOCOL
+
+    style CLIENT fill:#e1f5ff
+    style SERVER fill:#fff3e0
+    style DB fill:#f3e5f5
+    style SCHEMA fill:#e8f5e9
+    style REPORT fill:#fce4ec
+    style UI fill:#fff8e1
+    style PROTOCOL fill:#ede7f6
+    style FEATURES fill:#f1f8e9
+    style TECH fill:#e0f2f1
+    style RECENT fill:#fbe9e7
